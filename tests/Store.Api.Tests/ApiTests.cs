@@ -69,6 +69,19 @@ public sealed class ApiTests(WebApplicationFactory<Program> factory) : IClassFix
         Assert.False(errors.ContainsKey("page"));
     }
 
+    // Development sets RouteHandlerOptions.ThrowOnBadRequest to true; Program.cs turns it off so these stay 400, not 500.
+    [Theory]
+    [InlineData("/api/products?page=abc")]
+    [InlineData("/api/products?page=")]
+    [InlineData("/api/products?pageSize=1.5")]
+    [InlineData("/api/products?page=1&page=2")]
+    public async Task Rest_answers_400_when_a_query_parameter_cannot_be_bound(string path)
+    {
+        var response = await factory.CreateClient().GetAsync(path, Ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(51)]

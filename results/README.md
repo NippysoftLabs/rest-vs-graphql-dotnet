@@ -1,6 +1,6 @@
 # Results
 
-Run on 2026-11-24, Windows 11, .NET SDK 10.0.401, ASP.NET Core runtime 10.0.12,
+Run on 2026-11-25, Windows 11, .NET SDK 10.0.401, ASP.NET Core runtime 10.0.12,
 Hot Chocolate 16.7.7, EF Core 10.0.15 with in-memory SQLite. Server and probe on the same machine (loopback).
 Each file comes from a freshly started server.
 

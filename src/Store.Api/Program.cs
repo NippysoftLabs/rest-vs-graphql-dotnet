@@ -19,6 +19,9 @@ builder.Services.AddPooledDbContextFactory<StoreDbContext>((sp, options) => opti
 
 builder.Services.AddProblemDetails();
 
+// Development makes minimal APIs throw on a parameter that cannot be bound; answer 400 there too.
+builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
+
 builder.AddGraphQL()
     .AddApiTypes()
     // brand -> products -> brand -> ... can nest without end; stop at 6 levels.

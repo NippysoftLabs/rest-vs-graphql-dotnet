@@ -15,7 +15,8 @@ public static class Limits
     public const int MaxRating = 5;
 
     // Returns an error message, or null when the review is valid.
-    // Length is counted in UTF-16 code units (string.Length), the same unit as the database column limit.
+    // Length is counted in UTF-16 code units (string.Length), the same unit as HasMaxLength(MaxCommentLength).
+    // SQLite does not enforce that length, so this check is the only limit.
     public static string? ValidateReview(int rating, string? comment)
     {
         if (rating is < MinRating or > MaxRating)
