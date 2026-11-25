@@ -59,7 +59,10 @@ public static class RestEndpoints
             .ToListAsync(ct);
 
         // Public catalog data: any HTTP cache (browser, proxy, CDN) may reuse it for 60 s.
-        http.Response.Headers.CacheControl = "public, max-age=60";
+        // A request with Authorization may get user-specific data, so only the browser may keep it.
+        http.Response.Headers.CacheControl = http.Request.Headers.Authorization.Count == 0
+            ? "public, max-age=60"
+            : "private, max-age=60";
         return Results.Ok(items);
     }
 
@@ -85,7 +88,10 @@ public static class RestEndpoints
             .Select(r => new ReviewResource(r.Id, r.Rating, r.Comment))
             .ToListAsync(ct);
 
-        http.Response.Headers.CacheControl = "public, max-age=60";
+        // Same rule as the list: no shared caching for requests with Authorization.
+        http.Response.Headers.CacheControl = http.Request.Headers.Authorization.Count == 0
+            ? "public, max-age=60"
+            : "private, max-age=60";
         return Results.Ok(new ProductDetailResource(
             row.Product.Id, row.Product.Name, row.Product.Description, row.Product.Price,
             new BrandResource(row.Brand.Id, row.Brand.Name, row.Brand.Country), reviews));
@@ -104,7 +110,10 @@ public static class RestEndpoints
             return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Brand not found.");
         }
 
-        http.Response.Headers.CacheControl = "public, max-age=300";
+        // Same rule as the list: no shared caching for requests with Authorization.
+        http.Response.Headers.CacheControl = http.Request.Headers.Authorization.Count == 0
+            ? "public, max-age=300"
+            : "private, max-age=300";
         return Results.Ok(brand);
     }
 

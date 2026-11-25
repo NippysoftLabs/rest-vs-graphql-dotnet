@@ -116,6 +116,62 @@ public sealed class ApiTests(WebApplicationFactory<Program> factory) : IClassFix
         Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
     }
 
+    [Theory]
+    [InlineData(10, true)]
+    [InlineData(11, false)]
+    public async Task One_operation_holds_at_most_ten_addReview_aliases(int count, bool accepted)
+    {
+        var aliases = string.Join(" ", Enumerable.Range(1, count)
+            .Select(i => $"r{i}: addReview(productId: 3, rating: 4, comment: \"batch\") {{ id }}"));
+
+        var (_, body) = await PostGraphQLAsync(factory.CreateClient(), "mutation { " + aliases + " }");
+
+        if (accepted)
+        {
+            Assert.Equal(count, body["data"]!.AsObject().Count);
+        }
+        else
+        {
+            Assert.Equal("HC0047", body["errors"]![0]!["extensions"]!["code"]!.ToString());
+        }
+    }
+
+    [Fact]
+    public async Task Rest_does_not_allow_shared_caching_when_the_request_has_authorization()
+    {
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", "Bearer demo");
+
+        var list = await client.GetAsync("/api/products", Ct);
+        var detail = await client.GetAsync("/api/products/1", Ct);
+        var brand = await client.GetAsync("/api/brands/1", Ct);
+
+        // HttpClient parses Cache-Control, so compare its parts, not the header text.
+        foreach (var (response, maxAge) in new[] { (list, 60), (detail, 60), (brand, 300) })
+        {
+            var cacheControl = response.Headers.CacheControl!;
+            Assert.True(cacheControl.Private);
+            Assert.False(cacheControl.Public);
+            Assert.Equal(TimeSpan.FromSeconds(maxAge), cacheControl.MaxAge);
+        }
+    }
+
+    [Fact]
+    public async Task Nitro_ide_is_served_only_in_development()
+    {
+        using var production = factory.WithWebHostBuilder(b => b.UseEnvironment("Production"));
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/graphql/");
+        request.Headers.Accept.ParseAdd("text/html");
+        using var devRequest = new HttpRequestMessage(HttpMethod.Get, "/graphql/");
+        devRequest.Headers.Accept.ParseAdd("text/html");
+
+        var inProduction = await production.CreateClient().SendAsync(request, Ct);
+        var inDevelopment = await factory.CreateClient().SendAsync(devRequest, Ct);
+
+        Assert.NotEqual("text/html", inProduction.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("text/html", inDevelopment.Content.Headers.ContentType?.MediaType);
+    }
+
     [Fact]
     public async Task Introspection_is_refused_in_production()
     {

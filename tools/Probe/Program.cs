@@ -24,9 +24,14 @@ void Log(string line)
     output.Add(line);
 }
 
-async Task<Reply> SendAsync(HttpMethod method, string path, string? body = null, string? contentType = "application/json", string? accept = null)
+async Task<Reply> SendAsync(HttpMethod method, string path, string? body = null, string? contentType = "application/json", string? accept = null, string? authorization = null)
 {
     using var request = new HttpRequestMessage(method, path);
+    if (authorization is not null)
+    {
+        request.Headers.TryAddWithoutValidation("Authorization", authorization);
+    }
+
     if (body is not null)
     {
         request.Content = new StringContent(body, Encoding.UTF8);
@@ -40,8 +45,9 @@ async Task<Reply> SendAsync(HttpMethod method, string path, string? body = null,
 
     using var response = await http.SendAsync(request);
     var bytes = await response.Content.ReadAsByteArrayAsync();
+    // NonValidated keeps the header text as sent; TryGetValues would reorder Cache-Control.
     string? Header(string name) =>
-        response.Headers.TryGetValues(name, out var v) ? string.Join(",", v)
+        response.Headers.NonValidated.TryGetValues(name, out var v) ? string.Join(",", v)
         : response.Content.Headers.TryGetValues(name, out var c) ? string.Join(",", c) : null;
 
     return new Reply(
@@ -172,6 +178,8 @@ else
     await Gql("H4b", "__typename", "{ __typename }");
     var sdl = await SendAsync(HttpMethod.Get, "/graphql/schema.graphql");
     Log($"H4c GET /graphql/schema.graphql -> {sdl.Status} bytes={sdl.Bytes}");
+    var nitro = await SendAsync(HttpMethod.Get, "/graphql/", accept: "text/html");
+    Log($"H4d GET /graphql/ (Accept: text/html, Nitro IDE) -> {nitro.Status} Content-Type={nitro.ContentType ?? "-"}");
 
     Log("## H5 transport");
     var getMutation = await SendAsync(HttpMethod.Get,
@@ -201,6 +209,12 @@ else
     await Gql("H6h", "comment of 251 emoji (502 UTF-16 units)", Review(1, 4, string.Concat(Enumerable.Repeat("\U0001F600", 251))));
     await Gql("H6i", "productId 99999", Review(99999, 4, "ok"));
     await Gql("H6j", "comment with quotes and accents", Review(1, 4, "O'Brien said \"ñandú\""));
+    static string ReviewAliases(int count) =>
+        "mutation { " + string.Join(" ", Enumerable.Range(1, count).Select(i => $"r{i}: addReview(productId: 2, rating: 4, comment: \"batch\") {{ id }}")) + " }";
+    var ten = await GraphQLAsync(ReviewAliases(10));
+    Log($"H6l 10 aliases of addReview in one request -> {ten.Status} {Summary(ten)} created={JsonNode.Parse(ten.Body)?["data"]?.AsObject().Count ?? 0}");
+    var eleven = await GraphQLAsync(ReviewAliases(11));
+    Log($"H6m 11 aliases of addReview in one request -> {eleven.Status} {Summary(eleven)}");
     await Gql("H6k", "rating as string \"5\"", "mutation { addReview(productId: 1, rating: \"5\", comment: \"ok\") { id } }");
 
     Log("## H7 REST input");
@@ -218,6 +232,10 @@ else
     await Rest("H7k", "POST review without comment", HttpMethod.Post, "/api/products/1/reviews", "{\"rating\":4}");
     await Rest("H7l", "POST review rating as string", HttpMethod.Post, "/api/products/1/reviews", "{\"rating\":\"5\",\"comment\":\"ok\"}");
     await Rest("H7m", "POST review malformed JSON", HttpMethod.Post, "/api/products/1/reviews", "{\"rating\":");
+    var withAuth = await SendAsync(HttpMethod.Get, "/api/products", authorization: "Bearer demo");
+    Log($"H7p GET /api/products with Authorization -> {withAuth.Status} Cache-Control={withAuth.CacheControl ?? "-"}");
+    var noAuth = await SendAsync(HttpMethod.Get, "/api/products");
+    Log($"H7q GET /api/products without Authorization -> {noAuth.Status} Cache-Control={noAuth.CacheControl ?? "-"}");
     await Rest("H7n", "POST review to product 99999", HttpMethod.Post, "/api/products/99999/reviews", "{\"rating\":4,\"comment\":\"ok\"}");
 }
 

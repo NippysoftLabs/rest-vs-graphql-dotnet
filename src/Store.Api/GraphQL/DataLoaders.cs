@@ -3,8 +3,8 @@ using Store.Api.Data;
 
 namespace Store.Api.GraphQL;
 
-// Source-generated DataLoaders. Each method receives every key requested while the
-// resolvers of one level run, deduplicated, and sends one SQL command for all of them.
+// Source-generated DataLoaders. Each method receives every key requested before the batch is
+// dispatched (when no other resolver work is ready), deduplicated, and sends one SQL command for all of them.
 internal static class DataLoaders
 {
     [DataLoader]

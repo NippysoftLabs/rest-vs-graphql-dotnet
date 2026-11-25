@@ -58,7 +58,8 @@ app.UseExceptionHandler();
 app.UseStatusCodePages();
 
 app.MapRestApi();
-app.MapGraphQL();
+// Nitro, the GraphQL IDE that MapGraphQL serves at /graphql/, only in Development.
+app.MapGraphQL().WithOptions(o => o.Tool.Enable = app.Environment.IsDevelopment());
 
 app.Run();
 

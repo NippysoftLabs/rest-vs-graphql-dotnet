@@ -1,4 +1,5 @@
 using HotChocolate;
+using HotChocolate.CostAnalysis.Types;
 using HotChocolate.Types;
 using Microsoft.EntityFrameworkCore;
 using Store.Api.Data;
@@ -9,6 +10,9 @@ namespace Store.Api.GraphQL;
 public static partial class Mutation
 {
     // Same rules as POST /api/products/{id}/reviews (see Limits.ValidateReview).
+    // Weight 100: cost analysis rejects an operation whose field cost exceeds the default MaxFieldCost of 1,000,
+    // so one operation holds at most 10 addReview aliases.
+    [Cost(100)]
     public static async Task<Review> AddReviewAsync(
         int productId, int rating, string comment,
         IDbContextFactory<StoreDbContext> dbFactory, CancellationToken ct)
