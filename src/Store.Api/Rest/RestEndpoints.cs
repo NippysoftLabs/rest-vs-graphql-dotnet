@@ -58,8 +58,9 @@ public static class RestEndpoints
             .Select(p => new ProductResource(p.Id, p.Name, p.Description, p.Price, p.BrandId))
             .ToListAsync(ct);
 
-        // Public catalog data: any HTTP cache (browser, proxy, CDN) may reuse it for 60 s.
-        // A request with Authorization may get user-specific data, so only the browser may keep it.
+        // Catalog data: without Authorization, any HTTP cache (browser, proxy, CDN) may reuse it for 60 s.
+        // With Authorization the response may be user-specific, and "public" would let a shared cache
+        // keep it (RFC 9111, section 3.5), so it is "private": only the browser may reuse it.
         http.Response.Headers.CacheControl = http.Request.Headers.Authorization.Count == 0
             ? "public, max-age=60"
             : "private, max-age=60";
