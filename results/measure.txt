@@ -1,0 +1,17 @@
+## M1 list screen: 10 products with name, price and brand name
+M1 REST    requests=11 bytes=1880 sql=11 (list + 10 distinct brands)
+M1 GraphQL requests=1 bytes=663 sql=2 status=200
+## M2 the N+1 problem: SQL commands per request
+M2 first= 1 brandNaive sql=2 status=200 | brand (DataLoader) sql=2 status=200
+M2 first=10 brandNaive sql=11 status=200 | brand (DataLoader) sql=2 status=200
+M2 first=50 brandNaive sql=51 status=200 | brand (DataLoader) sql=2 status=200
+## M3 detail screen: product 1 with brand and reviews
+M3 REST    requests=1 bytes=296 sql=2 status=200
+M3 GraphQL requests=1 bytes=293 sql=3 status=200
+## M4 HTTP caching headers
+M4 GET  /api/products        Cache-Control=public, max-age=60
+M4 POST /graphql             Cache-Control=- Vary=Accept
+M4 GET  /graphql?query=...   status=200 Cache-Control=- Vary=Accept
+## M5 cost of a legitimate-looking list
+M5 products(first: 50) with brand and reviews -> 400 error code=HC0047 message="The maximum allowed field cost was exceeded." sql=0
+M5 products(first: 40) with brand and reviews -> 200 data=products sql=3

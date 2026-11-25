@@ -1,0 +1,51 @@
+## H1 nesting depth (limit: 6)
+H1a depth 6: products.brand.products.brand.name -> 200 data=products
+H1b depth 8: products.brand.products.brand.products.brand.products.name -> 400 error code=- message="The GraphQL document has an execution depth of 8 which exceeds the max allowed execution depth of 6."
+## H2 alias amplification
+H2 30 aliases of products(first: 50) with brandNaive -> 400 error code=HC0047 message="The maximum allowed field cost was exceeded."
+## H3 page size argument
+H3a first: 1000 -> 200 error code=STORE_INVALID_FIRST message="first must be between 1 and 50."
+H3b first: 51 -> 200 error code=STORE_INVALID_FIRST message="first must be between 1 and 50."
+H3c first: 0 -> 200 error code=STORE_INVALID_FIRST message="first must be between 1 and 50."
+H3d first: -1 -> 200 error code=STORE_INVALID_FIRST message="first must be between 1 and 50."
+H3e first: 2147483648 (above Int) -> 400 error code=HC0047 message="The maximum allowed type cost was exceeded."
+## H4 introspection in Production
+H4a __schema -> 400 error code=HC0046 message="Introspection is not allowed for the current request."
+H4b __typename -> 200 data=__typename
+H4c GET /graphql/schema.graphql -> 200 bytes=3255
+## H5 transport
+H5a mutation over GET -> 405 Allow=POST error code=- message="The specified operation kind is not allowed."
+H5b malformed JSON body -> 400 error code=HC0012 message="Invalid JSON document."
+H5c query as text/plain -> 404 problem title="Not Found" errors=-
+H5d JSON array (batch) of two operations -> 400 error code=HC0009 message="Invalid GraphQL Request."
+H5e unknown field, Accept: application/json -> 200 error code=- message="The field `price2` does not exist on the type `Product`."
+H5f unknown field, Accept: application/graphql-response+json -> 400 error code=- message="The field `price2` does not exist on the type `Product`."
+H5g 3000 fields in one document -> 400 error code=HC0011 message="The GraphQL request document contains more than 2048 fields. Parsing aborted."
+## H6 addReview input
+H6a rating 0 -> 200 error code=STORE_INVALID_REVIEW message="rating must be between 1 and 5."
+H6b rating 6 -> 200 error code=STORE_INVALID_REVIEW message="rating must be between 1 and 5."
+H6c empty comment -> 200 error code=STORE_INVALID_REVIEW message="comment must not be empty."
+H6d comment of 3 spaces -> 200 error code=STORE_INVALID_REVIEW message="comment must not be empty."
+H6e comment of 500 chars -> 200 data=addReview
+H6f comment of 501 chars -> 200 error code=STORE_INVALID_REVIEW message="comment must be at most 500 characters."
+H6g comment of 250 emoji (500 UTF-16 units) -> 200 data=addReview
+H6h comment of 251 emoji (502 UTF-16 units) -> 200 error code=STORE_INVALID_REVIEW message="comment must be at most 500 characters."
+H6i productId 99999 -> 200 error code=STORE_PRODUCT_NOT_FOUND message="Product 99999 not found."
+H6j comment with quotes and accents -> 200 data=addReview
+H6k rating as string "5" -> 400 error code=- message="The specified argument value does not match the argument type."
+## H7 REST input
+H7a GET /api/products?page=0 -> 400 problem title="One or more validation errors occurred." errors={"page":["page must be between 1 and 10000."]}
+H7b GET /api/products?page=10001 -> 400 problem title="One or more validation errors occurred." errors={"page":["page must be between 1 and 10000."]}
+H7c GET /api/products?page=2147483647 -> 400 problem title="One or more validation errors occurred." errors={"page":["page must be between 1 and 10000."]}
+H7d GET /api/products?pageSize=51 -> 400 problem title="One or more validation errors occurred." errors={"pageSize":["pageSize must be between 1 and 50."]}
+H7o GET /api/products?page=0&pageSize=0 -> 400 problem title="One or more validation errors occurred." errors={"page":["page must be between 1 and 10000."],"pageSize":["pageSize must be between 1 and 50."]}
+H7e GET /api/products?page=abc -> 400 problem title="Bad Request" errors=-
+H7f GET /api/products?page=10000 (empty page) -> 200 items=0
+H7g GET /api/products/abc -> 404 problem title="Not Found" errors=-
+H7h GET /api/products/-1 -> 404 problem title="Product not found." errors=-
+H7i GET /api/products/99999 -> 404 problem title="Product not found." errors=-
+H7j POST review rating 9 -> 400 problem title="One or more validation errors occurred." errors={"review":["rating must be between 1 and 5."]}
+H7k POST review without comment -> 400 problem title="One or more validation errors occurred." errors={"review":["comment must not be empty."]}
+H7l POST review rating as string -> 201 body="{"id":44,"rating":5,"comment":"ok"}"
+H7m POST review malformed JSON -> 400 problem title="Bad Request" errors=-
+H7n POST review to product 99999 -> 404 problem title="Product not found." errors=-
